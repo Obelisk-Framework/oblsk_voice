@@ -3,9 +3,15 @@
 local scriptDir = arg[0]:match('(.*/)') or './'
 local ROOT = scriptDir .. '..'
 
+_G.__TEST_RESOURCE_ROOT = ROOT
 dofile(scriptDir .. 'support/fivem_stubs.lua')
 
-Config = dofile(ROOT .. '/shared/config.lua')
+-- Deliberately hostile: this is what the shared global Config looks like when
+-- some OTHER plugin's shared/config.lua loaded last into the one Lua global
+-- environment core/fxmanifest.lua globs everything into. Nothing in
+-- VoiceService may read it - it self-loads modules/oblsk_voice/shared/config.lua
+-- instead. Set BEFORE VoiceService.lua loads, so the load-time path is covered.
+Config = { provider = 'saltychat', booths = {}, secondsPerBill = 60 }
 
 dofile(ROOT .. '/server/adapters/NativeAdapter.lua')
 dofile(ROOT .. '/server/adapters/PmaAdapter.lua')
@@ -24,8 +30,7 @@ local function eq(actual, expected, msg)
 end
 
 test('setProximity calls the native talker-proximity native under the native adapter', function()
-    Config.provider = 'native'
-    VoiceService.resetAdapterForTests()
+    VoiceService.setConfigForTests({ provider = 'native' })
 
     _G.__lastProximity = nil
     VoiceService.setProximity(1, 15.0)
@@ -34,8 +39,7 @@ test('setProximity calls the native talker-proximity native under the native ada
 end)
 
 test('joinRadioChannel/leaveRadioChannel are safe no-ops under the native adapter', function()
-    Config.provider = 'native'
-    VoiceService.resetAdapterForTests()
+    VoiceService.setConfigForTests({ provider = 'native' })
 
     local ok = pcall(VoiceService.joinRadioChannel, 1, '155.475')
     eq(ok, true)
@@ -44,8 +48,7 @@ test('joinRadioChannel/leaveRadioChannel are safe no-ops under the native adapte
 end)
 
 test('startCall/endCall are safe no-ops under the native adapter', function()
-    Config.provider = 'native'
-    VoiceService.resetAdapterForTests()
+    VoiceService.setConfigForTests({ provider = 'native' })
 
     local ok = pcall(VoiceService.startCall, 1, 2, 3)
     eq(ok, true)
@@ -54,8 +57,7 @@ test('startCall/endCall are safe no-ops under the native adapter', function()
 end)
 
 test('an unknown Config.provider falls back to the native adapter', function()
-    Config.provider = 'not-a-real-provider'
-    VoiceService.resetAdapterForTests()
+    VoiceService.setConfigForTests({ provider = 'not-a-real-provider' })
 
     _G.__lastProximity = nil
     VoiceService.setProximity(1, 10.0)
@@ -65,8 +67,7 @@ end)
 
 
 test('pma adapter proxies proximity/radio/call through pma-voice exports', function()
-    Config.provider = 'pma'
-    VoiceService.resetAdapterForTests()
+    VoiceService.setConfigForTests({ provider = 'pma' })
 
     _G.__pmaCalls = {}
     VoiceService.setProximity(1, 12.0)
@@ -88,8 +89,7 @@ test('pma adapter proxies proximity/radio/call through pma-voice exports', funct
     eq(_G.__pmaCalls[7].fn, 'setPlayerRadio') -- endCall sourceB
 end)
 test('yaca adapter uses its own radio-channel and phone-call exports', function()
-    Config.provider = 'yaca'
-    VoiceService.resetAdapterForTests()
+    VoiceService.setConfigForTests({ provider = 'yaca' })
 
     _G.__yacaCalls = {}
     VoiceService.setProximity(1, 12.0)
@@ -110,8 +110,7 @@ end)
 
 
 test('saltychat adapter uses SetPlayerVoiceRange/SetPlayerRadioChannel/SetPhoneSpeaker exports', function()
-    Config.provider = 'saltychat'
-    VoiceService.resetAdapterForTests()
+    VoiceService.setConfigForTests({ provider = 'saltychat' })
 
     _G.__saltyCalls = {}
     VoiceService.setProximity(1, 12.0)
@@ -155,6 +154,21 @@ test('saltychat adapter uses SetPlayerVoiceRange/SetPlayerRadioChannel/SetPhoneS
     eq(_G.__saltyCalls[10].args[2], '') -- sourceB leaves call channel
     eq(_G.__saltyCalls[11].fn, 'SetPhoneSpeaker')
     eq(_G.__saltyCalls[11].args[2], false) -- sourceB phone speaker off
+end)
+
+test('VoiceService ignores a colliding shared global Config from another plugin', function()
+    -- The global Config at the top of this file claims provider 'saltychat'.
+    -- Reloading from disk must yield oblsk_voice's own default ('native'),
+    -- proving no production path reads the shared global.
+    eq(Config.provider, 'saltychat')
+    VoiceService.setConfigForTests(nil) -- nil = re-read shared/config.lua from disk
+
+    _G.__saltyCalls = {}
+    _G.__lastProximity = nil
+    VoiceService.setProximity(1, 9.0)
+
+    eq(_G.__lastProximity, 9.0, 'expected the native adapter, not the global Config\'s saltychat')
+    eq(#_G.__saltyCalls, 0, 'the colliding global Config must not reach VoiceService')
 end)
 
 for _, t in ipairs(tests) do
