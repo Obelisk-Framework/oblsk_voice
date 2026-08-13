@@ -10,6 +10,7 @@ Config = dofile(ROOT .. '/shared/config.lua')
 dofile(ROOT .. '/server/adapters/NativeAdapter.lua')
 dofile(ROOT .. '/server/adapters/PmaAdapter.lua')
 dofile(ROOT .. '/server/adapters/YacaAdapter.lua')
+dofile(ROOT .. '/server/adapters/SaltychatAdapter.lua')
 dofile(ROOT .. '/server/services/VoiceService.lua')
 
 local tests, failures, passed = {}, {}, 0
@@ -105,6 +106,55 @@ test('yaca adapter uses its own radio-channel and phone-call exports', function(
     eq(_G.__yacaCalls[3].args[3], true)
     eq(_G.__yacaCalls[4].fn, 'phoneCallStart')
     eq(_G.__yacaCalls[5].fn, 'phoneCallEnd')
+end)
+
+
+test('saltychat adapter uses SetPlayerVoiceRange/SetPlayerRadioChannel/SetPhoneSpeaker exports', function()
+    Config.provider = 'saltychat'
+    VoiceService.resetAdapterForTests()
+
+    _G.__saltyCalls = {}
+    VoiceService.setProximity(1, 12.0)
+    VoiceService.joinRadioChannel(1, '155.475')
+    VoiceService.leaveRadioChannel(1, '155.475')
+    VoiceService.startCall(42, 1, 2)
+    VoiceService.endCall(42, 1, 2)
+
+    -- Total 11 calls: setProximity (1) + joinRadioChannel (1) + leaveRadioChannel (1)
+    --                + startCall (4: 2x SetPlayerRadioChannel + 2x SetPhoneSpeaker)
+    --                + endCall (4: 2x SetPlayerRadioChannel + 2x SetPhoneSpeaker)
+    eq(#_G.__saltyCalls, 11)
+    eq(_G.__saltyCalls[1].fn, 'SetPlayerVoiceRange')
+    eq(_G.__saltyCalls[1].args[2], 12.0) -- 2nd arg is range
+
+    eq(_G.__saltyCalls[2].fn, 'SetPlayerRadioChannel')
+    eq(_G.__saltyCalls[2].args[2], '155.475') -- 2nd arg is channel
+    eq(_G.__saltyCalls[2].args[3], true) -- 3rd arg is "primary"
+
+    eq(_G.__saltyCalls[3].fn, 'SetPlayerRadioChannel')
+    eq(_G.__saltyCalls[3].args[2], '') -- 2nd arg is empty channel name = leave
+
+    -- startCall for callId 42 puts both sources in 'call-42' channel
+    eq(_G.__saltyCalls[4].fn, 'SetPlayerRadioChannel')
+    eq(_G.__saltyCalls[4].args[2], 'call-42') -- sourceA joins call channel
+    eq(_G.__saltyCalls[5].fn, 'SetPlayerRadioChannel')
+    eq(_G.__saltyCalls[5].args[2], 'call-42') -- sourceB joins call channel
+
+    eq(_G.__saltyCalls[6].fn, 'SetPhoneSpeaker')
+    eq(_G.__saltyCalls[6].args[2], true) -- sourceA phone speaker on
+    eq(_G.__saltyCalls[7].fn, 'SetPhoneSpeaker')
+    eq(_G.__saltyCalls[7].args[2], true) -- sourceB phone speaker on
+
+    -- endCall leaves both sources from call channel and turns off speaker
+    eq(_G.__saltyCalls[8].fn, 'SetPlayerRadioChannel')
+    eq(_G.__saltyCalls[8].args[2], '') -- sourceA leaves call channel
+    eq(_G.__saltyCalls[9].fn, 'SetPhoneSpeaker')
+    eq(_G.__saltyCalls[9].args[2], false) -- sourceA phone speaker off
+
+    eq(_G.__saltyCalls[10].fn, 'SetPlayerRadioChannel')
+    eq(_G.__saltyCalls[10].args[2], '') -- sourceB leaves call channel
+    eq(_G.__saltyCalls[11].fn, 'SetPhoneSpeaker')
+    eq(_G.__saltyCalls[11].args[2], false) -- sourceB phone speaker off
 end)
 
 for _, t in ipairs(tests) do
