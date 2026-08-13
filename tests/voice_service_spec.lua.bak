@@ -8,7 +8,6 @@ dofile(scriptDir .. 'support/fivem_stubs.lua')
 Config = dofile(ROOT .. '/shared/config.lua')
 
 dofile(ROOT .. '/server/adapters/NativeAdapter.lua')
-dofile(ROOT .. '/server/adapters/PmaAdapter.lua')
 dofile(ROOT .. '/server/services/VoiceService.lua')
 
 local tests, failures, passed = {}, {}, 0
@@ -59,31 +58,6 @@ test('an unknown Config.provider falls back to the native adapter', function()
     VoiceService.setProximity(1, 10.0)
 
     eq(_G.__lastProximity, 10.0)
-end)
-
-
-test('pma adapter proxies proximity/radio/call through pma-voice exports', function()
-    Config.provider = 'pma'
-    VoiceService.resetAdapterForTests()
-
-    _G.__pmaCalls = {}
-    VoiceService.setProximity(1, 12.0)
-    VoiceService.joinRadioChannel(1, '155.475')
-    VoiceService.startCall(42, 1, 2)
-    VoiceService.leaveRadioChannel(1, '155.475')
-    VoiceService.endCall(42, 1, 2)
-
-    eq(#_G.__pmaCalls, 7)
-    eq(_G.__pmaCalls[1].fn, 'setTalkerProximity')
-    eq(_G.__pmaCalls[2].fn, 'setPlayerRadio')
-    eq(_G.__pmaCalls[2].args[1], 1)
-    eq(_G.__pmaCalls[2].args[2], '155.475')
-    eq(_G.__pmaCalls[3].fn, 'setPlayerRadio') -- startCall sourceA
-    eq(_G.__pmaCalls[4].fn, 'setPlayerRadio') -- startCall sourceB
-    eq(_G.__pmaCalls[5].fn, 'setPlayerRadio') -- leaveRadioChannel
-    eq(_G.__pmaCalls[5].args[3], true) -- 3rd arg is "remove"
-    eq(_G.__pmaCalls[6].fn, 'setPlayerRadio') -- endCall sourceA
-    eq(_G.__pmaCalls[7].fn, 'setPlayerRadio') -- endCall sourceB
 end)
 
 for _, t in ipairs(tests) do

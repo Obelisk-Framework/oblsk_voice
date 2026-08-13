@@ -7,10 +7,22 @@ function NetworkSetTalkerProximity(range)
     _G.__lastProximity = range
 end
 
+local function record(bucket)
+    return function(_, fn)
+        return function(self, ...)
+            local args = { ... }
+            _G[bucket] = _G[bucket] or {}
+            table.insert(_G[bucket], { fn = fn, args = args })
+        end
+    end
+end
+
 _G.exports = setmetatable({}, {
-    __index = function()
-        return setmetatable({}, {
-            __call = function() return nil end,
-        })
+    __index = function(_, resourceName)
+        local bucket = resourceName == 'pma-voice' and '__pmaCalls'
+            or resourceName == 'yaca-voice' and '__yacaCalls'
+            or resourceName == 'saltychat' and '__saltyCalls'
+            or '__unknownVoiceCalls'
+        return setmetatable({}, { __index = record(bucket) })
     end,
 })

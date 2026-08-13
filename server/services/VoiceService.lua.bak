@@ -63,10 +63,8 @@ function VoiceService.startCall(callId, sourceA, sourceB)
 end
 
 --- @param callId number
---- @param sourceA number|nil
---- @param sourceB number|nil
-function VoiceService.endCall(callId, sourceA, sourceB)
-    adapter().endCall(callId, sourceA, sourceB)
+function VoiceService.endCall(callId)
+    adapter().endCall(callId)
 end
 
 return VoiceService

@@ -14,6 +14,6 @@ end
 function NativeAdapter.joinRadioChannel(source, channelId) end
 function NativeAdapter.leaveRadioChannel(source, channelId) end
 function NativeAdapter.startCall(callId, sourceA, sourceB) end
-function NativeAdapter.endCall(callId) end
+function NativeAdapter.endCall(callId, sourceA, sourceB) end
 
 return NativeAdapter
