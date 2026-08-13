@@ -9,6 +9,7 @@ Config = dofile(ROOT .. '/shared/config.lua')
 
 dofile(ROOT .. '/server/adapters/NativeAdapter.lua')
 dofile(ROOT .. '/server/adapters/PmaAdapter.lua')
+dofile(ROOT .. '/server/adapters/YacaAdapter.lua')
 dofile(ROOT .. '/server/services/VoiceService.lua')
 
 local tests, failures, passed = {}, {}, 0
@@ -84,6 +85,26 @@ test('pma adapter proxies proximity/radio/call through pma-voice exports', funct
     eq(_G.__pmaCalls[5].args[3], true) -- 3rd arg is "remove"
     eq(_G.__pmaCalls[6].fn, 'setPlayerRadio') -- endCall sourceA
     eq(_G.__pmaCalls[7].fn, 'setPlayerRadio') -- endCall sourceB
+end)
+test('yaca adapter uses its own radio-channel and phone-call exports', function()
+    Config.provider = 'yaca'
+    VoiceService.resetAdapterForTests()
+
+    _G.__yacaCalls = {}
+    VoiceService.setProximity(1, 12.0)
+    VoiceService.leaveRadioChannel(1, '155.475')
+    VoiceService.joinRadioChannel(1, '155.475')
+    VoiceService.startCall(42, 1, 2)
+    VoiceService.endCall(42, 1, 2)
+
+    eq(#_G.__yacaCalls, 5)
+    eq(_G.__yacaCalls[1].fn, 'setPlayerVoiceRange')
+    eq(_G.__yacaCalls[2].fn, 'setActiveRadioChannel')
+    eq(_G.__yacaCalls[2].args[3], false) -- 3rd arg is "leaving"
+    eq(_G.__yacaCalls[3].fn, 'setActiveRadioChannel')
+    eq(_G.__yacaCalls[3].args[3], true)
+    eq(_G.__yacaCalls[4].fn, 'phoneCallStart')
+    eq(_G.__yacaCalls[5].fn, 'phoneCallEnd')
 end)
 
 for _, t in ipairs(tests) do
