@@ -36,6 +36,22 @@ local function withFakeDb(fn)
     if not ok then error(err, 2) end
 end
 
+local function withFakeVoice(fn)
+    local calls = {}
+    local original = VoiceService
+    VoiceService = {
+        joinRadioChannel = function(source, channelId, slot)
+            table.insert(calls, { fn = 'join', source = source, channelId = channelId, slot = slot })
+        end,
+        leaveRadioChannel = function(source, channelId, slot)
+            table.insert(calls, { fn = 'leave', source = source, channelId = channelId, slot = slot })
+        end,
+    }
+    local ok, err = pcall(fn, calls)
+    VoiceService = original
+    if not ok then error(err, 2) end
+end
+
 test('list: returns presets oldest first', function()
     withFakeDb(function()
         local a = RadioService.create(1, { frequency = '155.475', label = 'Dispatch' })
@@ -120,6 +136,65 @@ test('delete: a wrong characterId is a no-op, the preset survives', function()
         eq(#presets, 1)
         eq(presets[1].label, 'Safe')
     end)
+end)
+
+test('tune: joins the new frequency on the given slot and records it', function()
+    withFakeVoice(function(calls)
+        RadioService.tune(1, 10, 'primary', '155.475')
+
+        eq(#calls, 1)
+        eq(calls[1].fn, 'join')
+        eq(calls[1].source, 1)
+        eq(calls[1].channelId, '155.475')
+        eq(calls[1].slot, 'primary')
+
+        local tuning = RadioService.getTuning(10)
+        eq(tuning.primary.frequency, '155.475')
+        eq(tuning.primary.muted, false)
+    end)
+end)
+
+test('tune: retuning a slot leaves the old frequency before joining the new one', function()
+    withFakeVoice(function(calls)
+        RadioService.tune(1, 20, 'primary', '155.475')
+        RadioService.tune(1, 20, 'primary', '46.550')
+
+        eq(#calls, 3)
+        eq(calls[2].fn, 'leave')
+        eq(calls[2].channelId, '155.475')
+        eq(calls[2].slot, 'primary')
+        eq(calls[3].fn, 'join')
+        eq(calls[3].channelId, '46.550')
+
+        eq(RadioService.getTuning(20).primary.frequency, '46.550')
+    end)
+end)
+
+test('tune: primary and secondary are independent slots', function()
+    withFakeVoice(function()
+        RadioService.tune(1, 30, 'primary', '155.475')
+        RadioService.tune(1, 30, 'secondary', '46.550')
+
+        local tuning = RadioService.getTuning(30)
+        eq(tuning.primary.frequency, '155.475')
+        eq(tuning.secondary.frequency, '46.550')
+    end)
+end)
+
+test('untune: leaves the channel and clears that slot', function()
+    withFakeVoice(function(calls)
+        RadioService.tune(1, 40, 'primary', '155.475')
+        RadioService.untune(1, 40, 'primary')
+
+        eq(calls[2].fn, 'leave')
+        eq(calls[2].channelId, '155.475')
+        eq(RadioService.getTuning(40).primary, nil)
+    end)
+end)
+
+test('getTuning: an untouched character has no tuning for either slot', function()
+    eq(RadioService.getTuning(999).primary, nil)
+    eq(RadioService.getTuning(999).secondary, nil)
 end)
 
 print('\nRunning RadioService (presets) unit tests\n')

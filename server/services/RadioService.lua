@@ -72,4 +72,44 @@ function RadioService.delete(characterId, presetId)
         :where('id', presetId):where('character_id', characterId):delete()
 end
 
+--- In-memory per-character tuning state. Ephemeral - cleared implicitly on
+--- server restart, and callers are expected to untune on disconnect (see
+--- oblsk_phone/server/main.lua and oblsk_radio/server/main.lua). Never
+--- persisted: only the saved presets above are real, durable state.
+local tuning = {} -- characterId -> { primary = {frequency, muted}|nil, secondary = {...}|nil }
+
+--- @param characterId number
+--- @return table { primary = {frequency, muted}|nil, secondary = {...}|nil }
+function RadioService.getTuning(characterId)
+    return tuning[characterId] or {}
+end
+
+--- Leaves the old frequency on this slot (if any), joins the new one, and
+--- records it. @param source number @param characterId number
+--- @param slot string 'primary'|'secondary' @param frequency string
+function RadioService.tune(source, characterId, slot, frequency)
+    local state = tuning[characterId] or {}
+    tuning[characterId] = state
+
+    local current = state[slot]
+    if current then
+        VoiceService.leaveRadioChannel(source, current.frequency, slot)
+    end
+
+    VoiceService.joinRadioChannel(source, frequency, slot)
+    state[slot] = { frequency = frequency, muted = false }
+end
+
+--- @param source number @param characterId number @param slot string
+function RadioService.untune(source, characterId, slot)
+    local state = tuning[characterId]
+    local current = state and state[slot]
+    if not current then
+        return
+    end
+
+    VoiceService.leaveRadioChannel(source, current.frequency, slot)
+    state[slot] = nil
+end
+
 return RadioService
