@@ -1,0 +1,5 @@
+{
+  "migrations": [
+    "2026_08_15_223000_create_radio_presets_table"
+  ]
+}
