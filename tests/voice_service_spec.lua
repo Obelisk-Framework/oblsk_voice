@@ -156,6 +156,62 @@ test('saltychat adapter uses SetPlayerVoiceRange/SetPlayerRadioChannel/SetPhoneS
     eq(_G.__saltyCalls[11].args[2], false) -- sourceB phone speaker off
 end)
 
+test('saltychat adapter maps slot to the isPrimary flag on both join and leave', function()
+    VoiceService.setConfigForTests({ provider = 'saltychat' })
+
+    _G.__saltyCalls = {}
+    VoiceService.joinRadioChannel(1, '155.475', 'primary')
+    VoiceService.joinRadioChannel(1, '46.550', 'secondary')
+    VoiceService.leaveRadioChannel(1, '155.475', 'primary')
+    VoiceService.leaveRadioChannel(1, '46.550', 'secondary')
+
+    eq(#_G.__saltyCalls, 4)
+    eq(_G.__saltyCalls[1].args[2], '155.475')
+    eq(_G.__saltyCalls[1].args[3], true) -- primary -> isPrimary true
+    eq(_G.__saltyCalls[2].args[2], '46.550')
+    eq(_G.__saltyCalls[2].args[3], false) -- secondary -> isPrimary false
+    eq(_G.__saltyCalls[3].args[3], true) -- leave primary keeps isPrimary true
+    eq(_G.__saltyCalls[4].args[3], false) -- leave secondary keeps isPrimary false
+end)
+
+test('joinRadioChannel/leaveRadioChannel default slot to primary when omitted', function()
+    VoiceService.setConfigForTests({ provider = 'saltychat' })
+
+    _G.__saltyCalls = {}
+    VoiceService.joinRadioChannel(1, '155.475')
+
+    eq(_G.__saltyCalls[1].args[3], true)
+end)
+
+test('yaca adapter forwards slot as the 4th setActiveRadioChannel argument', function()
+    VoiceService.setConfigForTests({ provider = 'yaca' })
+
+    _G.__yacaCalls = {}
+    VoiceService.joinRadioChannel(1, '155.475', 'primary')
+    VoiceService.joinRadioChannel(1, '46.550', 'secondary')
+
+    eq(_G.__yacaCalls[1].args[4], 'primary')
+    eq(_G.__yacaCalls[2].args[4], 'secondary')
+end)
+
+test('pma adapter maps slot to pma-voice long/short radioType', function()
+    VoiceService.setConfigForTests({ provider = 'pma' })
+
+    _G.__pmaCalls = {}
+    VoiceService.joinRadioChannel(1, '155.475', 'primary')
+    VoiceService.joinRadioChannel(1, '46.550', 'secondary')
+
+    eq(_G.__pmaCalls[1].args[4], 'long')
+    eq(_G.__pmaCalls[2].args[4], 'short')
+end)
+
+test('native adapter ignores slot, still a safe no-op', function()
+    VoiceService.setConfigForTests({ provider = 'native' })
+
+    local ok = pcall(VoiceService.joinRadioChannel, 1, '155.475', 'secondary')
+    eq(ok, true)
+end)
+
 test('VoiceService ignores a colliding shared global Config from another plugin', function()
     -- The global Config at the top of this file claims provider 'saltychat'.
     -- Reloading from disk must yield oblsk_voice's own default ('native'),

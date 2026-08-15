@@ -18,12 +18,12 @@ function SaltychatAdapter.setProximity(source, range)
     exports[RESOURCE]:SetPlayerVoiceRange(source, range)
 end
 
-function SaltychatAdapter.joinRadioChannel(source, channelId)
-    exports[RESOURCE]:SetPlayerRadioChannel(source, channelId, true)
+function SaltychatAdapter.joinRadioChannel(source, channelId, slot)
+    exports[RESOURCE]:SetPlayerRadioChannel(source, channelId, slot == 'primary')
 end
 
-function SaltychatAdapter.leaveRadioChannel(source, channelId)
-    exports[RESOURCE]:SetPlayerRadioChannel(source, '', true)
+function SaltychatAdapter.leaveRadioChannel(source, channelId, slot)
+    exports[RESOURCE]:SetPlayerRadioChannel(source, '', slot == 'primary')
 end
 
 function SaltychatAdapter.startCall(callId, sourceA, sourceB)

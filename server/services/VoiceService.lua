@@ -76,14 +76,16 @@ end
 
 --- @param source number
 --- @param channelId string
-function VoiceService.joinRadioChannel(source, channelId)
-    adapter().joinRadioChannel(source, channelId)
+--- @param slot string|nil 'primary' (default) or 'secondary'
+function VoiceService.joinRadioChannel(source, channelId, slot)
+    adapter().joinRadioChannel(source, channelId, slot or 'primary')
 end
 
 --- @param source number
 --- @param channelId string
-function VoiceService.leaveRadioChannel(source, channelId)
-    adapter().leaveRadioChannel(source, channelId)
+--- @param slot string|nil 'primary' (default) or 'secondary'
+function VoiceService.leaveRadioChannel(source, channelId, slot)
+    adapter().leaveRadioChannel(source, channelId, slot or 'primary')
 end
 
 --- @param callId number

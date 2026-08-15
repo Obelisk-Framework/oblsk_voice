@@ -11,8 +11,8 @@ function NativeAdapter.setProximity(source, range)
     NetworkSetTalkerProximity(range)
 end
 
-function NativeAdapter.joinRadioChannel(source, channelId) end
-function NativeAdapter.leaveRadioChannel(source, channelId) end
+function NativeAdapter.joinRadioChannel(source, channelId, slot) end
+function NativeAdapter.leaveRadioChannel(source, channelId, slot) end
 function NativeAdapter.startCall(callId, sourceA, sourceB) end
 function NativeAdapter.endCall(callId, sourceA, sourceB) end
 

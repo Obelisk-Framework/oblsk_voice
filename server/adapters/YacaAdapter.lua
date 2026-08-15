@@ -12,12 +12,15 @@ function YacaAdapter.setProximity(source, range)
     exports[RESOURCE]:setPlayerVoiceRange(source, range)
 end
 
-function YacaAdapter.joinRadioChannel(source, channelId)
-    exports[RESOURCE]:setActiveRadioChannel(source, channelId, true)
+--- Best-effort: forwards `slot` as a 4th argument identifying which of
+--- yaca-voice's concurrent channel slots this join targets - unverified
+--- against a live install, same tier as this adapter's other exports.
+function YacaAdapter.joinRadioChannel(source, channelId, slot)
+    exports[RESOURCE]:setActiveRadioChannel(source, channelId, true, slot)
 end
 
-function YacaAdapter.leaveRadioChannel(source, channelId)
-    exports[RESOURCE]:setActiveRadioChannel(source, channelId, false)
+function YacaAdapter.leaveRadioChannel(source, channelId, slot)
+    exports[RESOURCE]:setActiveRadioChannel(source, channelId, false, slot)
 end
 
 function YacaAdapter.startCall(callId, sourceA, sourceB)

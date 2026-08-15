@@ -23,12 +23,15 @@ function PmaAdapter.setProximity(source, range)
     exports[RESOURCE]:setTalkerProximity(source, range)
 end
 
-function PmaAdapter.joinRadioChannel(source, channelId)
-    exports[RESOURCE]:setPlayerRadio(source, channelId, false)
+--- Best-effort: maps `slot` onto pma-voice's short/long radio-range concept
+--- - unverified against a live install, same tier as this adapter's other
+--- exports.
+function PmaAdapter.joinRadioChannel(source, channelId, slot)
+    exports[RESOURCE]:setPlayerRadio(source, channelId, false, slot == 'primary' and 'long' or 'short')
 end
 
-function PmaAdapter.leaveRadioChannel(source, channelId)
-    exports[RESOURCE]:setPlayerRadio(source, channelId, true)
+function PmaAdapter.leaveRadioChannel(source, channelId, slot)
+    exports[RESOURCE]:setPlayerRadio(source, channelId, true, slot == 'primary' and 'long' or 'short')
 end
 
 function PmaAdapter.startCall(callId, sourceA, sourceB)
