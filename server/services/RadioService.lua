@@ -73,9 +73,9 @@ function RadioService.delete(characterId, presetId)
 end
 
 --- In-memory per-character tuning state. Ephemeral - cleared implicitly on
---- server restart, and callers are expected to untune on disconnect (see
---- oblsk_phone/server/main.lua and oblsk_radio/server/main.lua). Never
---- persisted: only the saved presets above are real, durable state.
+--- server restart, and explicitly on disconnect (see the playerDropped
+--- handler below, which untunes the departing character's own slots).
+--- Never persisted: only the saved presets above are real, durable state.
 local tuning = {} -- characterId -> { primary = {frequency, muted}|nil, secondary = {...}|nil }
 
 --- @param characterId number
@@ -111,5 +111,25 @@ function RadioService.untune(source, characterId, slot)
     VoiceService.leaveRadioChannel(source, current.frequency, slot)
     state[slot] = nil
 end
+
+--- Disconnect cleanup: without this, `tuning` above would grow unbounded
+--- for the server's lifetime and a reconnecting player would hydrate stale
+--- state. Matches the playerDropped pattern used by other services that
+--- own in-memory per-player/per-character state (see e.g.
+--- core/server/Services/SpawnManagerService.lua,
+--- modules/oblsk_accounts/server/main.lua).
+--- CharacterService never clears its own sessionCharacters table on
+--- playerDropped, so getActiveCharacterId(source) still resolves correctly
+--- here regardless of handler registration order.
+AddEventHandler('playerDropped', function()
+    local source = source
+    local characterId = CharacterService.getActiveCharacterId(source)
+    if not characterId then
+        return
+    end
+
+    RadioService.untune(source, characterId, 'primary')
+    RadioService.untune(source, characterId, 'secondary')
+end)
 
 return RadioService
