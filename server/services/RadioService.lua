@@ -16,7 +16,7 @@ function RadioService.list(characterId)
     return QueryBuilder.new('radio_presets')
         :where('character_id', characterId)
         :orderBy('id', 'asc')
-        :getSync()
+        :get()
 end
 
 --- @param characterId number
@@ -36,7 +36,7 @@ function RadioService.create(characterId, attributes)
         updated_at = Database.now(),
     })
 
-    return QueryBuilder.new('radio_presets'):where('id', id):firstSync()
+    return QueryBuilder.new('radio_presets'):where('id', id):first()
 end
 
 --- Partial update, no-op if this preset does not belong to characterId.
@@ -45,7 +45,7 @@ end
 --- @param attributes table any subset of { frequency, label }
 function RadioService.update(characterId, presetId, attributes)
     local owned = QueryBuilder.new('radio_presets')
-        :where('id', presetId):where('character_id', characterId):firstSync()
+        :where('id', presetId):where('character_id', characterId):first()
     if not owned then
         return
     end
@@ -63,7 +63,7 @@ end
 --- @param presetId number
 function RadioService.delete(characterId, presetId)
     local owned = QueryBuilder.new('radio_presets')
-        :where('id', presetId):where('character_id', characterId):firstSync()
+        :where('id', presetId):where('character_id', characterId):first()
     if not owned then
         return
     end

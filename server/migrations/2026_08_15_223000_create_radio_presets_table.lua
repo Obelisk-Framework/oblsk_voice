@@ -18,7 +18,7 @@ return {
         end)
 
         if Schema.hasTable('phone_radio_presets') then
-            Database.executeSync(
+            Database.execute(
                 'INSERT INTO radio_presets (character_id, frequency, label, created_at, updated_at) '
                 .. 'SELECT character_id, frequency, label, created_at, updated_at FROM phone_radio_presets'
             )
